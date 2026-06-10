@@ -1,0 +1,25 @@
+{
+  "name": "ash-express-boilerplate",
+  "version": "1.0.0",
+  "description": "Node Js boilerplate ",
+  "license": "ISC",
+  "author": "Ash",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "cross-env": "^10.1.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.2.0",
+    "joi": "^18.2.1",
+    "mongoose": "^9.6.3",
+    "validator": "^13.15.35",
+    "winston": "^3.19.0",
+    "xss-clean": "^0.1.4"
+  }
+}
