@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const { errorConverter, errorHandler } = require('./middlewares/error');
 const ApiError = require('./utlis/ApiError');
 const httpStatus = require('http-status')
+const routes = require('./routes/v1')
 
 const app = express();
 // secure headers and prevents header attacks */ Memory leaks
@@ -23,8 +24,7 @@ app.use('*', cors());
 
 
 // Api routes 👥
-
-
+app.use('/v1', routes)
 
 
 // error handling middleware */ will be under the routes always 👍
