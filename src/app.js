@@ -1,10 +1,9 @@
 const express = require('express');
 const cors = require('cors')
-const xss = require('xss-clean');
 const helmet = require('helmet');
 const { errorConverter, errorHandler } = require('./middlewares/error');
-const ApiError = require('./utlis/ApiError');
-const httpStatus = require('http-status')
+const ApiError = require('./utils/ApiError');
+const httpStatus = require('http-status').default;
 const routes = require('./routes/v1')
 
 const app = express();
@@ -14,13 +13,8 @@ app.use(helmet());
 // parse json request body 
 app.use(express.json());
 
-
-// to get clean xss requests from trusted sources❤️
-app.use(xss());
-
 // cors origin security
 app.use(cors());
-app.use('*', cors());
 
 
 // Api routes 👥
@@ -35,9 +29,9 @@ app.use((req, res, next) => {
 })
 
 // if not api error then convert it to a error state shape 🔁
-app.use(errorConverter());
+app.use(errorConverter);
 
 // global error handler middleware
-app.use(errorHandler());
+app.use(errorHandler);
 
 module.exports = app

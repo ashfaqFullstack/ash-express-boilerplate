@@ -3,12 +3,12 @@ const path = require('path');
 const Joi = require('joi');
 
 dotenv.config({
-    path: path.join(_dirname, '../../.env')
+    path: path.join(__dirname, '../../.env')
 });
 
 const envVarsSchema = Joi.object()
     .keys({
-        NODE_ENV: Joi.string().valid('development', 'production', 'test').required(),
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
         PORT: Joi.number().default(8000),
         MONGODB_URL: Joi.string().required().description('Mongo DB url'),
         JWT_SECRET: Joi.string().required().description('JWT secret key'),
@@ -40,9 +40,7 @@ module.exports = {
     mongoose: {
         url: envVars.MONGODB_URL + (envVars.NODE_ENV === "test" ? '-test' : ""),
         options: {
-            useCreateIndex: true,
-            useNewUrlParser: true,
-            useUnifinedTopology: true
+            // Deprecated options removed for Mongoose 9.x compatibility
         }
     },
     jwt: {

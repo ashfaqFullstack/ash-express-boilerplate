@@ -23,6 +23,7 @@ const exitHandler = () => {
 };
 
 const unexpectedErrorHandler = (error) => {
+    console.error('Unexpected Error:', error);  // Direct console log before logger
     logger.error(error);
     exitHandler();
 };

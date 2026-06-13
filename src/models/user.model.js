@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const validator = require('validator')
 const { roles } = require('../config/roles');
 const { toJSON, paginate } = require('./plugins');
 
@@ -75,12 +76,12 @@ userSchema.methods.isPasswordMatch = async function (password) {
     return bcrypt.compare(password, user.password);
 };
 
-userSchema.pre('save', async function () {
+userSchema.pre('save', async function (next) {
     const user = this;
     if (user.isModified("password")) {
         user.password = await bcrypt.hash(user.password, 8);
     };
-    next();
+    next;
 });
 
 /**
