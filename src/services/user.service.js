@@ -33,6 +33,17 @@ const createUser = async (userBody) => {
     return User.create(userBody);
 };
 
+
+/**
+ * Get user with email
+ * @param {string} email 
+ * @returns {Promise<User>}
+ */
+const getUserByEmail = async (email) => {
+    return User.findOne({ email })
+}
+
 module.exports = {
-    createUser
+    createUser,
+    getUserByEmail
 }

@@ -25,7 +25,7 @@ app.use('/v1', routes)
 
 // 404 Not Found Api error for not existing Api route 🚫
 app.use((req, res, next) => {
-    next(new ApiError(httpStatus.NOT_FOUND, "Not found 🚫"))
+    next(new ApiError(httpStatus.NOT_FOUND, "Api route Not found 🚫"))
 })
 
 // if not api error then convert it to a error state shape 🔁
