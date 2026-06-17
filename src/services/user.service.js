@@ -43,7 +43,68 @@ const getUserByEmail = async (email) => {
     return User.findOne({ email })
 }
 
+/**
+ * Get user by Id
+ * @param {string} userId
+ * @returns {Promise<User>}
+ */
+const getUserById = async (userId) => {
+    return User.findById(userId)
+}
+
+/**
+ * Query all users for admin
+ * @param {options} filter - Mongo filter
+ * @param {number} options - Query options
+ * @returns {Promise<Results>}
+ */
+
+const queryUsers = async (filter, options) => {
+    const results = await User.paginate(filter, options);
+    return results;
+}
+
+/**
+ * Update User [admin , user]
+ * @param {string} userId
+ * @param {Object} User
+ * @returns {Promise<User>}
+ */
+
+const updateUserById = async (userId, userData) => {
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new ApiError(httpStatus.NOT_FOUND, "User with associated id not found");
+    };
+    if (userData.email && (await User.isEmailTaken(userData.email, userId))) {
+        throw new ApiError(httpStatus.BAD_REQUEST, "This email is already reserved by other user");
+    };
+
+    Object.assign(user, userData);
+    await User.save();
+    return user;
+}
+
+
+/**
+ * Delete user by Id
+ * @param {string} userId
+ * @returns {Promise<User>}
+ */
+
+const deleteUserById = async (userId) => {
+    const user = await User.findByIdAndDelete(userId); 
+    if (!user) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+    }
+    return user;
+};
+
 module.exports = {
     createUser,
-    getUserByEmail
-}
+    getUserByEmail,
+    getUserById,
+    queryUsers,
+    updateUserById,
+    deleteUserById
+} 

@@ -7,7 +7,7 @@ const { User } = require('../models');
 const register = catchAsync(async (req, res) => {
     const user = await userService.createUser(req.body);
     const tokens = await tokenService.generateAuthTokens(user)
-    res.status(httpStatus.CREATED).send({ tokens })
+    res.status(httpStatus.CREATED).send({ user, tokens })
 });
 
 const login = catchAsync(async (req, res) => {
@@ -15,11 +15,15 @@ const login = catchAsync(async (req, res) => {
     const user = await authService.loginUserWithEmailandPassword(email, password);
     const tokens = await tokenService.generateAuthTokens(user);
 
-    res.send({ tokens })
+    res.send({ user, tokens })
 })
-
+const logoutUser = catchAsync(async (req, res) => {
+    await authService.logout(req.body.refreshToken);
+    res.status(httpStatus.NO_CONTENT).send();
+})
 
 module.exports = {
     register,
-    login
+    login,
+    logoutUser
 }

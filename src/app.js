@@ -4,7 +4,9 @@ const helmet = require('helmet');
 const { errorConverter, errorHandler } = require('./middlewares/error');
 const ApiError = require('./utils/ApiError');
 const httpStatus = require('http-status').default;
-const routes = require('./routes/v1')
+const routes = require('./routes/v1');
+const passport = require('passport');
+const { jwtStrategy } = require('./config/passport');
 
 const app = express();
 // secure headers and prevents header attacks */ Memory leaks
@@ -15,6 +17,9 @@ app.use(express.json());
 
 // cors origin security
 app.use(cors());
+
+app.use(passport.initialize());
+passport.use('jwt', jwtStrategy)
 
 
 // Api routes 👥

@@ -6,7 +6,7 @@
 
 const deletePath = (obj, path, index) => {
     if (index === path.length - 1) {
-        delete obj[path[inedx]];
+        delete obj[path[index]];
         return;
     }
     deletePath(obj[path[index]], path, index + 1);
