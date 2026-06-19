@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { Token } = require('../models');
 const { tokenTypes } = require('../config/tokens');
 const moment = require('moment');
+const { userService } = require('.');
 
 /**
  * @param {string} userId 
@@ -67,8 +68,36 @@ const generateAuthTokens = async (user) => {
     };
 };
 
+
+/**
+ * Generate Reset and forgot password token
+ * @param {string} email
+ * @returns {Promise<string>}
+ */
+const generateResetPasswordToken = async (email) => {
+    const user = await userService.getUserByEmail(email);
+    if (!user) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'No users found with this email');
+    }
+    const expires = moment().add(config.jwt.resetPasswordExpirationMinutes, 'minutes');
+    const resetPasswordToken = generateToken(user.id, expires, tokenTypes.RESET_PASSWORD);
+    await saveToken(resetPasswordToken, user.id, expires, tokenTypes.RESET_PASSWORD);
+    return resetPasswordToken;
+};
+
+const verifyToken = async (token, type) => {
+    const payload = jwt.verify(token, config.jwt.secret);
+    const tokenDoc = await Token.findOne({ token, type, user: payload.sub, blacklisted: false })
+    if (!tokenDoc) {
+        throw new Error('Token not found');
+    }
+    return tokenDoc;
+}
+
 module.exports = {
     generateToken,
     saveToken,
-    generateAuthTokens
+    generateAuthTokens,
+    generateResetPasswordToken,
+    verifyToken
 }
