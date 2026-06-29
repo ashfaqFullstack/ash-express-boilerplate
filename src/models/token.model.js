@@ -1,41 +1,54 @@
-const mongoose = require('mongoose');
-const { toJSON } = require('./plugins');
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../config/db');
 const { tokenTypes } = require('../config/tokens');
+const User = require('./user.model');
 
+class Token extends Model {}
 
-const tokenSchema = mongoose.Schema(
+Token.init(
     {
-        token: {
-            type: String,
-            required: true,
-            index: true
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true,
         },
-        user: {
-            type: mongoose.Schema.ObjectId,
-            ref: 'User',
-            required: true
+        token: {
+            type: DataTypes.TEXT,
+            allowNull: false,
+        },
+        userId: {
+            type: DataTypes.UUID,
+            allowNull: false,
+            references: {
+                model: 'users',
+                key: 'id',
+            },
+            onDelete: 'CASCADE',
         },
         type: {
-            type: String,
-            enum: [tokenTypes.REFRESH, tokenTypes.RESET_PASSWORD, tokenTypes.VERIFY_EMAIL],
-            required: true,
+            type: DataTypes.ENUM(tokenTypes.REFRESH, tokenTypes.RESET_PASSWORD, tokenTypes.VERIFY_EMAIL),
+            allowNull: false,
         },
         expires: {
-            type: Date,
-            required: true,
+            type: DataTypes.DATE,
+            allowNull: false,
         },
         blacklisted: {
-            type: Boolean,
-            default: false
-        }
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+        },
     },
     {
-        timestamps: true
+        sequelize,
+        modelName: 'Token',
+        tableName: 'tokens',
+        timestamps: true,
+        indexes: [{ fields: ['token'] }],
     }
 );
 
-tokenSchema.plugin(toJSON);
-
-const Token = mongoose.model('Token', tokenSchema);
+// Associations
+User.hasMany(Token, { foreignKey: 'userId', as: 'tokens' });
+Token.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 module.exports = Token;

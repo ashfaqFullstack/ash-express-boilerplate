@@ -1,92 +1,150 @@
-const mongoose = require('mongoose');
+const { DataTypes, Model } = require('sequelize');
 const bcrypt = require('bcrypt');
-const validator = require('validator')
+const validator = require('validator');
+const sequelize = require('../config/db');
 const { roles } = require('../config/roles');
-const { toJSON, paginate } = require('./plugins');
 
+class User extends Model {
+    /**
+     * Check if email is already taken
+     * @param {string} email
+     * @param {string} [excludeUserId] - user id to exclude from check
+     * @returns {Promise<boolean>}
+     */
+    static async isEmailTaken(email, excludeUserId) {
+        const { Op } = require('sequelize');
+        const where = { email };
+        if (excludeUserId) {
+            where.id = { [Op.ne]: excludeUserId };
+        }
+        const user = await this.findOne({ where });
+        return !!user;
+    }
 
-const userSchema = mongoose.Schema(
+    /**
+     * Match entered password against stored hash
+     * @param {string} password
+     * @returns {Promise<boolean>}
+     */
+    async isPasswordMatch(password) {
+        return bcrypt.compare(password, this.password);
+    }
+
+    /**
+     * Return safe public representation (no password)
+     */
+    toJSON() {
+        const values = { ...this.get() };
+        delete values.password;
+        return values;
+    }
+
+    /**
+     * Paginate query results
+     * @param {Object} filter - where clause
+     * @param {Object} options - { sortBy, limit, page }
+     * @returns {Promise<{ results, page, limit, totalPages, totalResults }>}
+     */
+    static async paginate(filter, options) {
+        const { Op, fn, col } = require('sequelize');
+
+        const limit = options.limit && parseInt(options.limit, 10) > 0 ? parseInt(options.limit, 10) : 10;
+        const page = options.page && parseInt(options.page, 10) > 0 ? parseInt(options.page, 10) : 1;
+        const offset = (page - 1) * limit;
+
+        // Parse sortBy: "name:asc,email:desc" → [['name','ASC'],['email','DESC']]
+        let order = [['createdAt', 'ASC']];
+        if (options.sortBy) {
+            order = options.sortBy.split(',').map((sortOption) => {
+                const [key, direction] = sortOption.split(':');
+                return [key, direction === 'desc' ? 'DESC' : 'ASC'];
+            });
+        }
+
+        const { count, rows } = await this.findAndCountAll({
+            where: filter,
+            limit,
+            offset,
+            order,
+            attributes: { exclude: ['password'] },
+        });
+
+        return {
+            results: rows,
+            page,
+            limit,
+            totalPages: Math.ceil(count / limit),
+            totalResults: count,
+        };
+    }
+}
+
+User.init(
     {
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true,
+        },
         name: {
-            type: String,
-            required: true,
-            trim: true
+            type: DataTypes.STRING,
+            allowNull: false,
         },
         email: {
-            type: String,
-            required: true,
+            type: DataTypes.STRING,
+            allowNull: false,
             unique: true,
-            trim: true,
-            lowercase: true,
-            validate(value) {
-                if (!validator.isEmail(value)) {
-                    throw new Error('Invalid Email')
-                };
-            }
+            validate: {
+                isEmail(value) {
+                    if (!validator.isEmail(value)) {
+                        throw new Error('Invalid Email');
+                    }
+                },
+            },
         },
         password: {
-            type: String,
-            required: true,
-            trim: true,
-            minlength: 8,
-            validate(value) {
-                if (!value.match(/\d/) || !value.match(/[a-zA-Z]/)) {
-                    throw new Error("Password must contain at one letter capital and one number!🫢")
-                }
+            type: DataTypes.STRING,
+            allowNull: false,
+            validate: {
+                len: {
+                    args: [8, 255],
+                    msg: 'Password must be at least 8 characters',
+                },
+                hasLetterAndNumber(value) {
+                    if (!value.match(/\d/) || !value.match(/[a-zA-Z]/)) {
+                        throw new Error('Password must contain at least one letter and one number!');
+                    }
+                },
             },
-            private: true
         },
         role: {
-            type: String,
-            enum: roles,
-            default: 'user'
+            type: DataTypes.ENUM(...roles),
+            defaultValue: 'user',
         },
         isEmailVerified: {
-            type: Boolean,
-            default: false
-        }
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+        },
     },
     {
-        timestamps: true
+        sequelize,
+        modelName: 'User',
+        tableName: 'users',
+        timestamps: true,
     }
 );
 
-
-// Plugin to convert mongoose to JSON
-userSchema.plugin(toJSON)
-userSchema.plugin(paginate)
-/**
- * Check if email is taken alredy
- * @param {string} email
- * @param {ObjectId} [currentUserId] - The id of the user not to be find from DB
- * @returns {Promise<boolean>}
- */
-userSchema.statics.isEmailTaken = async function (email, currentUserId) {
-    const user = await this.findOne({ email, _id: { $ne: currentUserId } });
-    return !!user;
-};
-
-/**
- * Password match with the user entered password
- * @param {string} password
- * @returns {Promis<boolean>}
- */
-userSchema.methods.isPasswordMatch = async function (password) {
-    const user = this;
-    return bcrypt.compare(password, user.password);
-};
-
-userSchema.pre('save', async function (next) {
-    const user = this;
-    if (user.isModified("password")) {
+// Hash password before create/update
+User.beforeCreate(async (user) => {
+    if (user.password) {
         user.password = await bcrypt.hash(user.password, 8);
-    };
-    next;
+    }
 });
 
-/**
- * @typedef User
- */
-const User = mongoose.model('User', userSchema);
+User.beforeUpdate(async (user) => {
+    if (user.changed('password')) {
+        user.password = await bcrypt.hash(user.password, 8);
+    }
+});
 
 module.exports = User;

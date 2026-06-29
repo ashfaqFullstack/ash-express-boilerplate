@@ -1,6 +1,11 @@
-const objectId = (value, helpers) => {
-    if (!value.match(/^[0-9a-fA-F]{24}$/)) {
-        return helpers.message('"{{#label}}" must be a valid mongo id');
+const { validate: isUuid } = require('uuid');
+
+/**
+ * Joi custom validator for UUID v4
+ */
+const uuid = (value, helpers) => {
+    if (!isUuid(value)) {
+        return helpers.message('"{{#label}}" must be a valid UUID');
     }
     return value;
 };
@@ -16,6 +21,6 @@ const password = (value, helpers) => {
 };
 
 module.exports = {
-    objectId,
+    uuid,
     password,
 };
