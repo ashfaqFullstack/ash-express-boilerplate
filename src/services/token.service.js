@@ -1,6 +1,6 @@
 const config = require('../config/config');
 const jwt = require('jsonwebtoken');
-const { Token } = require('../models');
+const prisma = require('../config/prisma');
 const { tokenTypes } = require('../config/tokens');
 const moment = require('moment');
 const { userService } = require('.');
@@ -24,7 +24,7 @@ const generateToken = (userId, expires, type, secret = config.jwt.secret) => {
 };
 
 /**
- * Persist a token in the DB
+ * Persist a token in the DB via Prisma
  * @param {string} token
  * @param {string} userId
  * @param {Moment} expires
@@ -33,12 +33,14 @@ const generateToken = (userId, expires, type, secret = config.jwt.secret) => {
  * @returns {Promise<Token>}
  */
 const saveToken = async (token, userId, expires, type, blacklisted = false) => {
-    return Token.create({
-        token,
-        userId,
-        expires: expires.toDate(),
-        type,
-        blacklisted,
+    return prisma.token.create({
+        data: {
+            token,
+            userId,
+            expires: expires.toDate(),
+            type,
+            blacklisted,
+        },
     });
 };
 
@@ -93,8 +95,13 @@ const generateResetPasswordToken = async (email) => {
  */
 const verifyToken = async (token, type) => {
     const payload = jwt.verify(token, config.jwt.secret);
-    const tokenDoc = await Token.findOne({
-        where: { token, type, userId: payload.sub, blacklisted: false },
+    const tokenDoc = await prisma.token.findFirst({
+        where: {
+            token,
+            type,
+            userId: payload.sub,
+            blacklisted: false,
+        },
     });
     if (!tokenDoc) {
         throw new Error('Token not found');

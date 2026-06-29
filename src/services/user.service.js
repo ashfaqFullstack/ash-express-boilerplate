@@ -1,15 +1,16 @@
-const { User } = require('../models');
+const prisma = require('../config/prisma');
+const { UserModel } = require('../models');
 const ApiError = require('../utils/ApiError');
 const httpStatus = require('http-status').default;
 const dns = require('dns').promises;
 
 /**
- * Create a user (also validates email domain via DNS MX lookup)
+ * Create a user (validates email domain via DNS MX lookup)
  * @param {Object} userBody
  * @returns {Promise<User>}
  */
 const createUser = async (userBody) => {
-    if (await User.isEmailTaken(userBody.email)) {
+    if (await UserModel.isEmailTaken(userBody.email)) {
         throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
     }
 
@@ -25,35 +26,44 @@ const createUser = async (userBody) => {
         throw new ApiError(httpStatus.BAD_REQUEST, 'The provided email domain cannot receive emails');
     }
 
-    return User.create(userBody);
+    const hashedPassword = await UserModel.hashPassword(userBody.password);
+
+    const user = await prisma.user.create({
+        data: {
+            ...userBody,
+            password: hashedPassword,
+        },
+    });
+
+    return UserModel.sanitizeUser(user);
 };
 
 /**
  * Get user by email
  * @param {string} email
- * @returns {Promise<User>}
+ * @returns {Promise<User|null>}
  */
 const getUserByEmail = async (email) => {
-    return User.findOne({ where: { email } });
+    return prisma.user.findUnique({ where: { email } });
 };
 
 /**
  * Get user by UUID
  * @param {string} userId
- * @returns {Promise<User>}
+ * @returns {Promise<User|null>}
  */
 const getUserById = async (userId) => {
-    return User.findByPk(userId);
+    return prisma.user.findUnique({ where: { id: userId } });
 };
 
 /**
  * Paginated query for admin user listing
- * @param {Object} filter - where clause fields
+ * @param {Object} filter - Prisma where clause
  * @param {Object} options - { sortBy, limit, page }
  * @returns {Promise<PaginatedResult>}
  */
 const queryUsers = async (filter, options) => {
-    return User.paginate(filter, options);
+    return UserModel.paginate(filter, options);
 };
 
 /**
@@ -63,15 +73,26 @@ const queryUsers = async (filter, options) => {
  * @returns {Promise<User>}
  */
 const updateUserById = async (userId, userData) => {
-    const user = await User.findByPk(userId);
+    const user = await getUserById(userId);
     if (!user) {
         throw new ApiError(httpStatus.NOT_FOUND, 'User with associated id not found');
     }
-    if (userData.email && (await User.isEmailTaken(userData.email, userId))) {
+
+    if (userData.email && (await UserModel.isEmailTaken(userData.email, userId))) {
         throw new ApiError(httpStatus.BAD_REQUEST, 'This email is already reserved by another user');
     }
-    await user.update(userData);
-    return user;
+
+    // Hash password if it's being updated
+    if (userData.password) {
+        userData.password = await UserModel.hashPassword(userData.password);
+    }
+
+    const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: userData,
+    });
+
+    return UserModel.sanitizeUser(updatedUser);
 };
 
 /**
@@ -80,12 +101,14 @@ const updateUserById = async (userId, userData) => {
  * @returns {Promise<User>}
  */
 const deleteUserById = async (userId) => {
-    const user = await User.findByPk(userId);
+    const user = await getUserById(userId);
     if (!user) {
         throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
     }
-    await user.destroy();
-    return user;
+
+    await prisma.user.delete({ where: { id: userId } });
+
+    return UserModel.sanitizeUser(user);
 };
 
 module.exports = {

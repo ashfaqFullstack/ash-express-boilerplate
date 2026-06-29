@@ -1,4 +1,5 @@
-const { Token } = require('../models');
+const prisma = require('../config/prisma');
+const { UserModel } = require('../models');
 const ApiError = require('../utils/ApiError');
 const { userService, tokenService } = require('.');
 const httpStatus = require('http-status').default;
@@ -12,7 +13,7 @@ const { tokenTypes } = require('../config/tokens');
  */
 const loginUserWithEmailandPassword = async (email, password) => {
     const user = await userService.getUserByEmail(email);
-    if (!user || !(await user.isPasswordMatch(password))) {
+    if (!user || !(await UserModel.isPasswordMatch(password, user.password))) {
         throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect credentials');
     }
     return user;
@@ -24,13 +25,13 @@ const loginUserWithEmailandPassword = async (email, password) => {
  * @returns {Promise}
  */
 const logout = async (refreshToken) => {
-    const refreshTokenDoc = await Token.findOne({
+    const refreshTokenDoc = await prisma.token.findFirst({
         where: { token: refreshToken, type: tokenTypes.REFRESH, blacklisted: false },
     });
     if (!refreshTokenDoc) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Not found');
     }
-    await refreshTokenDoc.destroy();
+    await prisma.token.delete({ where: { id: refreshTokenDoc.id } });
 };
 
 /**
@@ -45,7 +46,7 @@ const refreshAuth = async (token) => {
         if (!user) {
             throw new Error();
         }
-        await refreshTokenDoc.destroy();
+        await prisma.token.delete({ where: { id: refreshTokenDoc.id } });
         return tokenService.generateAuthTokens(user);
     } catch (error) {
         throw new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate');

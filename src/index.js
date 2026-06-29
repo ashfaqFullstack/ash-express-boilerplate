@@ -1,23 +1,15 @@
 const app = require('./app');
 const config = require('./config/config');
 const logger = require('./config/logger');
-const sequelize = require('./config/db');
-
-// Import models so Sequelize registers them before sync
-require('./models');
+const prisma = require('./config/prisma');
 
 let server;
 
 const startServer = async () => {
     try {
-        await sequelize.authenticate();
-        logger.info('Connected to PostgreSQL');
-
-        // Sync tables (use migrations in production instead)
-        if (config.env !== 'production') {
-            await sequelize.sync({ alter: true });
-            logger.info('Database synced');
-        }
+        // Verify Prisma can connect to PostgreSQL
+        await prisma.$connect();
+        logger.info('Connected to PostgreSQL via Prisma');
 
         server = app.listen(config.port, () => {
             logger.info(`Listening to port: ${config.port}`);
@@ -30,7 +22,8 @@ const startServer = async () => {
 
 startServer();
 
-const exitHandler = () => {
+const exitHandler = async () => {
+    await prisma.$disconnect();
     if (server) {
         server.close(() => {
             logger.info('Server closed');
@@ -49,8 +42,9 @@ const unexpectedErrorHandler = (error) => {
 process.on('uncaughtException', unexpectedErrorHandler);
 process.on('unhandledRejection', unexpectedErrorHandler);
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
     logger.info('SIGTERM received');
+    await prisma.$disconnect();
     if (server) {
         server.close();
     }
