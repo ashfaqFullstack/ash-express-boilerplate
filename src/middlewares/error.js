@@ -1,4 +1,3 @@
-const { ValidationError, UniqueConstraintError, DatabaseError } = require('sequelize');
 const httpStatus = require('http-status').default;
 const config = require('../config/config');
 const logger = require('../config/logger');
@@ -11,17 +10,20 @@ const errorConverter = (err, req, res, next) => {
         let statusCode = error.statusCode || httpStatus.INTERNAL_SERVER_ERROR;
         let message = error.message || httpStatus[statusCode];
 
-        // Handle Sequelize-specific errors
-        if (error instanceof UniqueConstraintError) {
+        // Handle Prisma-specific errors
+        if (error.code === 'P2002') {
+            // Unique constraint violation
             statusCode = httpStatus.BAD_REQUEST;
-            const field = Object.keys(error.fields)[0];
+            const field = error.meta?.target?.[0] || 'field';
             message = `${field} already exists`;
-        } else if (error instanceof ValidationError) {
+        } else if (error.code === 'P2025') {
+            // Record not found
+            statusCode = httpStatus.NOT_FOUND;
+            message = 'Record not found';
+        } else if (error.code && error.code.startsWith('P')) {
+            // Other Prisma errors
             statusCode = httpStatus.BAD_REQUEST;
-            message = error.errors.map((e) => e.message).join(', ');
-        } else if (error instanceof DatabaseError) {
-            statusCode = httpStatus.INTERNAL_SERVER_ERROR;
-            message = 'Database error';
+            message = error.message || 'Database error';
         }
 
         error = new ApiError(statusCode, message, false, err.stack);
